@@ -1,0 +1,10 @@
+/target
+
+inputs.txt
+inputs.json
+object.json
+params.bin
+proof.json
+proof.txt
+verification_key.json
+verification_key.txt
