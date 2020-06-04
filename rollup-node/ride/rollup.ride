@@ -1,0 +1,41 @@
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+
+let transferVK=base64''
+
+func takeLR(v:ByteVector, from:Int, to:Int) = {
+    drop(take(v, to), from)
+}
+
+func getRoot() = {
+    match getBinary(this, "ROOT") {
+        case a:ByteVector => a
+        case _ => base64''
+    }
+}
+
+@Callable(i)
+func transfer(proof:ByteVector, v:ByteVector) = {
+
+    let curRoot = getRoot()
+    let rootBefore = takeLR(v, 0, 32)
+    let rootAfter = takeLR(v, 32, 64)
+
+    if (curRoot!=base64'' && curRoot != rootBefore) then
+        throw("Wrong rootBefore")
+    else if (!groth16Verify(transferVK, proof, v)) then 
+        throw("wrong proof")
+    else [
+        #BinaryEntry("ROOT", rootAfter) #TODO remove comment
+    ]
+}
+
+@Verifier(tx)
+func verify() = {
+    match tx {
+        case tx:InvokeScriptTransaction => sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+        case _ => true  # TODO replace to false
+    }
+}
