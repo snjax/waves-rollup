@@ -1,0 +1,37 @@
+[package]
+name = "rollup-client"
+version = "0.1.0"
+authors = ["Igor Gulamov <igor.gulamov@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fawkes-crypto = "2.3.0"
+fawkes-crypto_derive = "0.1.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rand = "=0.4"
+typenum = "=1.12.0"
+lazy_static = "1.4.0"
+num = "0.2.1"
+rollup-crypto = { path = "../rollup-crypto" }
+reqwest = { version = "0.10", features = ["blocking", "json"] }
+
+[dependencies.clap]
+version = "3.0.0-beta.1"
+package = "clap-v3"
+
+[dependencies.ff]
+version = "=0.7"
+features = ["derive"]
+package = "ff_ce"
+
+[dependencies.bellman]
+version = "=0.3.1"
+package = "bellman_ce"
+default-features = false
+
+[dependencies.pairing]
+version = "=0.18"
+package = "pairing_ce"
