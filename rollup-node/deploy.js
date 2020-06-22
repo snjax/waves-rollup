@@ -26,7 +26,7 @@ const ridetpl = fs.readFileSync("ride/rollup.ride", {encoding:"utf8"});
 
 
 (async () => {
-  let vk = fs.readFileSync("../rollup-crypto/verification_key.txt", {encoding:"utf8"});
+  let vk = fs.readFileSync("../verification_key.txt", {encoding:"utf8"});
   const ridescript = ridetpl.replace("let transferVK=base64''", `let transferVK=base64'${vk}'`);
  
   

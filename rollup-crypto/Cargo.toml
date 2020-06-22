@@ -5,11 +5,17 @@ authors = ["Igor Gulamov <igor.gulamov@gmail.com>"]
 edition = "2018"
 
 
+[lib]
+crate-type = ["rlib"]
+
+[[bin]]
+name = "rollup-prover"
+path = "src/main.rs"
+
+
 [dependencies]
 fawkes-crypto = "2.3.0"
 fawkes-crypto_derive = "0.1.2"
-# fawkes-crypto = {path = "../../fawkes-crypto"}
-# fawkes-crypto_derive = {path = "../../fawkes-crypto/fawkes-crypto_derive"}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rand = "=0.4"

@@ -11,22 +11,17 @@ pub mod circuit;
 pub mod native;
 pub mod constants;
 
-
-
-use crate::{
-    circuit::{CRollupPub, CRollupSec, c_rollup},
-    native::{RollupPub, RollupSec, RollupParams, gen_test_data::gen_test_data}
-};
-
-
-use fawkes_crypto::native::bls12_381::Fr;
-use fawkes_crypto::native::poseidon::PoseidonParams;
-use fawkes_crypto::native::bls12_381::JubJubBLS12_381;
-use lazy_static::lazy_static;
-
 use typenum::{U16};
 pub type L = U16;
 pub type N = U16;
+
+use crate::native::RollupParams;
+use fawkes_crypto::native::bls12_381::Fr;
+
+use fawkes_crypto::native::poseidon::PoseidonParams;
+use fawkes_crypto::native::bls12_381::JubJubBLS12_381;
+
+use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref ROLLUP_PARAMS: RollupParams<Fr, JubJubBLS12_381> = RollupParams {
@@ -39,13 +34,3 @@ lazy_static! {
 }
 
 
-
-
-
-
-
-groth16_waves_bindings!(cli, RollupPub<Fr>, CRollupPub, RollupSec<Fr, L, N>, CRollupSec, ROLLUP_PARAMS, c_rollup, gen_test_data);
-
-fn main() {
-    cli::cli_main()
-}

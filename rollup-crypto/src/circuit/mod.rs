@@ -84,25 +84,30 @@ pub fn c_rollup<'a, CS:ConstraintSystem, L:Unsigned, N:Unsigned, J:JubJubParams<
     let mut cur_root = p.root_before.clone();
     for i in 0..N::USIZE {
         let ref tx = s.tx[i];
+        let ref notempty = num!(1) - tx.amount.is_zero().0;
+        let ref selftx = (&tx.from - &tx.to).is_zero().0;
+        (num!(2) - notempty - selftx).assert_nonzero();
+
         let  CTxEx {mut leaf_from, mut leaf_to, proof_from, proof_to} = s.txex[i].clone();
         
-        (&leaf_from.nonce - &tx.nonce).assert_zero();
-        tx.sigverify(&leaf_from.owner, params).assert_true();
+        ((&leaf_from.nonce - &tx.nonce) * notempty).assert_zero();
+        ((tx.sigverify(&leaf_from.owner, params).0 - num!(1)) * notempty).assert_zero();
 
         let cmp_root = c_poseidon_merkle_proof_root(&leaf_from.hash(params), &proof_from, &params.compress);
         
-        (cmp_root - &cur_root).assert_zero();
+        ((cmp_root - &cur_root) * notempty).assert_zero();
         
         leaf_from.amount -= &tx.amount;
         leaf_from.nonce += num!(1);
         c_into_bits_le(&leaf_from.amount, AMOUNT_LENGTH);
-        cur_root = c_poseidon_merkle_proof_root(&leaf_from.hash(params), &proof_from, &params.compress);
+        cur_root += (c_poseidon_merkle_proof_root(&leaf_from.hash(params), &proof_from, &params.compress) - &cur_root) * notempty;
 
         let cmp_root = c_poseidon_merkle_proof_root(&leaf_to.hash(params), &proof_to, &params.compress);
-        (cmp_root - &cur_root).assert_zero();
+        
+        ((cmp_root - &cur_root) * notempty).assert_zero();
         leaf_to.amount += &tx.amount;
         c_into_bits_le(&leaf_to.amount, AMOUNT_LENGTH);   
-        cur_root = c_poseidon_merkle_proof_root(&leaf_to.hash(params), &proof_to, &params.compress);
+        cur_root += (c_poseidon_merkle_proof_root(&leaf_to.hash(params), &proof_to, &params.compress) - &cur_root) * notempty;
     }
 
     (cur_root - &p.root_after).assert_zero();

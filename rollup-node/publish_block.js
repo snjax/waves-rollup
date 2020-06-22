@@ -34,8 +34,8 @@ let tx = invokeScript({
   payment: [],
   call: {
   function: "transfer",
-  args: [{ type: "binary", value:fs.readFileSync("../rollup-crypto/proof.txt", {encoding:"utf8"})},
-  { type: "binary", value:fs.readFileSync("../rollup-crypto/inputs.txt", {encoding:"utf8"})}]
+  args: [{ type: "binary", value:fs.readFileSync("../proof.txt", {encoding:"utf8"})},
+  { type: "binary", value:fs.readFileSync("../inputs.txt", {encoding:"utf8"})}]
   }, fee
 }, seed);
 let t = await broadcast(tx, rpc);

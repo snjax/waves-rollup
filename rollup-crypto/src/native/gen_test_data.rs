@@ -24,8 +24,12 @@ pub struct RollupState<L:Unsigned, N:Unsigned>{
 }
 
 impl<L:Unsigned, N:Unsigned> RollupState<L,N> {
-    pub fn new(n:usize) -> Self {
-        Self::from_leaf(&vec![Leaf{owner:num!(0), amount:num!(0), nonce:num!(0)}; n])
+    pub fn new() -> Self {
+        Self::from_leaf(&vec![Leaf{owner:num!(0), amount:num!(0), nonce:num!(0)}; 1<<L::USIZE])
+    }
+
+    pub fn root(&self) -> Num<Fr> {
+        self.cell[0]
     }
 
     pub fn from_leaf(leaf:&[Leaf<Fr>]) -> Self {
@@ -57,34 +61,39 @@ impl<L:Unsigned, N:Unsigned> RollupState<L,N> {
         MerkleProof {sibling, path}
     }
 
-    pub fn transact(&mut self, tx:&Tx<Fr>) -> TxEx<Fr, L> {
+    pub fn transact(&mut self, tx:&Tx<Fr>) -> Option<TxEx<Fr, L>> {
         let from = Into::<u64>::into(tx.from) as usize;
         let to = Into::<u64>::into(tx.to) as usize;
-        assert!(tx.sigverify(self.leaf[from].owner, &ROLLUP_PARAMS));
-        assert!(Into::<BigUint>::into(self.leaf[from].amount) >= Into::<BigUint>::into(tx.amount));
+        if self.leaf[from].nonce!=tx.nonce {
+            None
+        } else if !tx.sigverify(self.leaf[from].owner, &ROLLUP_PARAMS) {
+            None
+        } else if Into::<BigUint>::into(self.leaf[from].amount) < Into::<BigUint>::into(tx.amount) {
+            None
+        } else {
+            let leaf_from = self.leaf[from].clone();
+            let leaf_to = self.leaf[to].clone();
 
-        let leaf_from = self.leaf[from].clone();
-        let leaf_to = self.leaf[to].clone();
+            let proof_from = self.proof(from);
+            self.leaf[from].amount -= tx.amount;
+            self.leaf[from].nonce += num!(1);
+            self.update(from);
 
-        let proof_from = self.proof(from);
-        self.leaf[from].amount -= tx.amount;
-        self.leaf[from].nonce += num!(1);
-        self.update(from);
-
-        let proof_to = self.proof(to);
-        self.leaf[to].amount += tx.amount;
-        self.update(to);
-        TxEx{leaf_from, leaf_to, proof_from, proof_to}
+            let proof_to = self.proof(to);
+            self.leaf[to].amount += tx.amount;
+            self.update(to);
+            Some(TxEx{leaf_from, leaf_to, proof_from, proof_to})
+        }
     }
 
-    pub fn block(&mut self, tx:&[Tx<Fr>]) -> (RollupPub<Fr>, RollupSec<Fr, L, N>) {
+    pub fn block(&mut self, tx:&[Tx<Fr>]) -> Option<(RollupPub<Fr>, RollupSec<Fr, L, N>)> {
         assert!(tx.len()==N::USIZE);
         let root_before = self.cell[0].clone();
         let tx = SizedVec(tx.to_vec(), PhantomData);
-        let txex = tx.iter().map(|t| self.transact(t)).collect();
+        let txex = tx.iter().map(|t| self.transact(t)).collect::<Option<SizedVec<_, _>>>()?;
         let root_after = self.cell[0].clone();
 
-        (RollupPub{root_before, root_after}, RollupSec{tx, txex})
+        Some((RollupPub{root_before, root_after}, RollupSec{tx, txex}))
     }
 
 
@@ -112,7 +121,10 @@ pub fn gen_test_data<L:Unsigned, N:Unsigned>() -> (RollupPub<Fr>, RollupSec<Fr, 
 
     let tx = (0..tx_len).map(|_| {
         let from = rng.gen::<usize>() % leaf_len;
-        let to = rng.gen::<usize>() % leaf_len;
+        let mut to = rng.gen::<usize>() % (leaf_len-1);
+        if to >= from {
+            to += 1;
+        }
 
         let amount = if leaf[from].amount.is_zero() {
             num!(0)
@@ -142,7 +154,7 @@ pub fn gen_test_data<L:Unsigned, N:Unsigned>() -> (RollupPub<Fr>, RollupSec<Fr, 
         tx
     }).collect::<Vec<_>>();
 
-    state.block(&tx)
+    state.block(&tx).unwrap()
 
 }
 
@@ -150,15 +162,16 @@ pub fn gen_test_data<L:Unsigned, N:Unsigned>() -> (RollupPub<Fr>, RollupSec<Fr, 
 #[cfg(test)]
 mod rollup_test {
     use super::*;
-    use typenum::{U2, U4};
+    use crate::{L, N};
     use crate::circuit::{c_rollup, CRollupPub, CRollupSec};
     use fawkes_crypto::core::cs::TestCS;
     use fawkes_crypto::core::signal::Signal;
+    use std::time::{Instant};
 
     #[test]
     fn test_rollup() {
 
-        let (p, s) = gen_test_data::<U4, U2>();
+        let (p, s) = gen_test_data::<L, N>();
 
         
         let ref mut cs = TestCS::<Fr>::new();
@@ -167,10 +180,13 @@ mod rollup_test {
 
 
         let mut n_constraints = cs.num_constraints();
+        let start = Instant::now();
         c_rollup(&signal_p, &signal_s, &ROLLUP_PARAMS);
+        let duration = start.elapsed();
         n_constraints=cs.num_constraints()-n_constraints;
         
         println!("rollup constraints = {}", n_constraints);
+        println!("circuit building time = {} sec", duration.as_secs_f32());
 
     }
 

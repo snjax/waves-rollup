@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "rollup-crypto",
+  "rollup-server",
+  "rollup-client"
+]
